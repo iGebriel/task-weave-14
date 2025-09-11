@@ -80,7 +80,9 @@ export const ProjectDashboard = () => {
     return (
       <ProjectBoard 
         project={selectedProject} 
-        onBack={() => setSelectedProject(null)} 
+        projects={projects}
+        onBack={() => setSelectedProject(null)}
+        onProjectChange={setSelectedProject}
       />
     );
   }

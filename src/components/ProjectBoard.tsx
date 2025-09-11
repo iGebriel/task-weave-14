@@ -4,8 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TaskColumn } from "./TaskColumn";
 import { CreateTaskModal } from "./CreateTaskModal";
+import { ProjectSelector } from "./ProjectSelector";
+import { ExportModal } from "./ExportModal";
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove } from "@dnd-kit/sortable";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 
 interface Project {
   id: string;
@@ -33,7 +36,9 @@ interface Task {
 
 interface ProjectBoardProps {
   project: Project;
+  projects?: Project[];
   onBack: () => void;
+  onProjectChange?: (project: Project) => void;
 }
 
 // Sample tasks data
@@ -88,10 +93,12 @@ const sampleTasks: Task[] = [
   },
 ];
 
-export const ProjectBoard = ({ project, onBack }: ProjectBoardProps) => {
+export const ProjectBoard = ({ project, projects = [], onBack, onProjectChange }: ProjectBoardProps) => {
   const [tasks, setTasks] = useState<Task[]>(sampleTasks);
   const [showCreateTask, setShowCreateTask] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [createTaskStatus, setCreateTaskStatus] = useState<"todo" | "progress" | "done">("todo");
 
   const columns = [
     { id: "todo", title: "To Do", status: "todo" as const },
@@ -126,27 +133,23 @@ export const ProjectBoard = ({ project, onBack }: ProjectBoardProps) => {
     setActiveTask(null);
   };
 
-  const handleExportCSV = () => {
-    const csvContent = [
-      ["Title", "Description", "Status", "Priority", "Assignee", "Due Date", "Created"],
-      ...tasks.map(task => [
-        task.title,
-        task.description,
-        task.status,
-        task.priority,
-        task.assignee || "",
-        task.dueDate?.toLocaleDateString() || "",
-        task.createdAt.toLocaleDateString(),
-      ])
-    ].map(row => row.map(field => `"${field}"`).join(",")).join("\n");
+  const handleTaskUpdate = (updatedTask: Task) => {
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === updatedTask.id ? updatedTask : task
+      )
+    );
+  };
 
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${project.name.replace(/\s+/g, "_")}_tasks.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+  const handleAddTask = (status: "todo" | "progress" | "done") => {
+    setCreateTaskStatus(status);
+    setShowCreateTask(true);
+  };
+
+  // Mock data for export modal - in real app this would come from API
+  const allTasksData = {
+    [project.id]: tasks,
+    // Add other projects' tasks here
   };
 
   return (
@@ -163,6 +166,16 @@ export const ProjectBoard = ({ project, onBack }: ProjectBoardProps) => {
               <ArrowLeft className="w-5 h-5 mr-2" />
               Back to Dashboard
             </Button>
+            
+            {/* Project Selector */}
+            {projects.length > 0 && onProjectChange && (
+              <ProjectSelector
+                projects={projects}
+                currentProject={project}
+                onProjectChange={onProjectChange}
+              />
+            )}
+            
             <div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
                 {project.name}
@@ -174,7 +187,7 @@ export const ProjectBoard = ({ project, onBack }: ProjectBoardProps) => {
           <div className="flex items-center space-x-3">
             <Button
               variant="outline"
-              onClick={handleExportCSV}
+              onClick={() => setShowExportModal(true)}
               className="border-border hover:bg-secondary/50"
             >
               <Download className="w-4 h-4 mr-2" />
@@ -222,13 +235,19 @@ export const ProjectBoard = ({ project, onBack }: ProjectBoardProps) => {
         </div>
 
         {/* Kanban Board */}
-        <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <DndContext 
+          onDragStart={handleDragStart} 
+          onDragEnd={handleDragEnd}
+          modifiers={[restrictToVerticalAxis]}
+        >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {columns.map((column) => (
               <TaskColumn
                 key={column.id}
                 column={column}
                 tasks={getTasksByStatus(column.status)}
+                onAddTask={handleAddTask}
+                onTaskUpdate={handleTaskUpdate}
               />
             ))}
           </div>
@@ -251,9 +270,22 @@ export const ProjectBoard = ({ project, onBack }: ProjectBoardProps) => {
           open={showCreateTask}
           onClose={() => setShowCreateTask(false)}
           onCreateTask={(newTask) => {
-            setTasks(prev => [...prev, { ...newTask, id: Date.now().toString() }]);
+            setTasks(prev => [...prev, { 
+              ...newTask, 
+              id: Date.now().toString(),
+              status: createTaskStatus 
+            }]);
             setShowCreateTask(false);
           }}
+          defaultStatus={createTaskStatus}
+        />
+
+        <ExportModal
+          open={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          projects={projects}
+          allTasks={allTasksData}
+          currentProjectId={project.id}
         />
       </div>
     </div>

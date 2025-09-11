@@ -14,16 +14,17 @@ interface CreateTaskModalProps {
   open: boolean;
   onClose: () => void;
   onCreateTask: (task: any) => void;
+  defaultStatus?: "todo" | "progress" | "done";
 }
 
-export const CreateTaskModal = ({ open, onClose, onCreateTask }: CreateTaskModalProps) => {
+export const CreateTaskModal = ({ open, onClose, onCreateTask, defaultStatus = "todo" }: CreateTaskModalProps) => {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     priority: "medium" as "low" | "medium" | "high",
     assignee: "",
     dueDate: null as Date | null,
-    status: "todo" as "todo" | "progress" | "done",
+    status: defaultStatus as "todo" | "progress" | "done",
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -43,7 +44,7 @@ export const CreateTaskModal = ({ open, onClose, onCreateTask }: CreateTaskModal
       priority: "medium",
       assignee: "",
       dueDate: null,
-      status: "todo",
+      status: defaultStatus,
     });
   };
 

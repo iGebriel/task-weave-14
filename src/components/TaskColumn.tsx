@@ -24,9 +24,11 @@ interface Column {
 interface TaskColumnProps {
   column: Column;
   tasks: Task[];
+  onAddTask?: (status: "todo" | "progress" | "done") => void;
+  onTaskUpdate?: (updatedTask: Task) => void;
 }
 
-export const TaskColumn = ({ column, tasks }: TaskColumnProps) => {
+export const TaskColumn = ({ column, tasks, onAddTask, onTaskUpdate }: TaskColumnProps) => {
   const { setNodeRef, isOver } = useDroppable({
     id: column.status,
   });
@@ -67,7 +69,10 @@ export const TaskColumn = ({ column, tasks }: TaskColumnProps) => {
             {tasks.length}
           </Badge>
         </div>
-        <button className="w-full flex items-center justify-center py-2 px-3 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-lg transition-colors duration-200 border-2 border-dashed border-muted hover:border-primary/30">
+        <button 
+          onClick={() => onAddTask?.(column.status)}
+          className="w-full flex items-center justify-center py-2 px-3 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-lg transition-colors duration-200 border-2 border-dashed border-muted hover:border-primary/30"
+        >
           <Plus className="w-4 h-4 mr-2" />
           Add task
         </button>
@@ -80,7 +85,7 @@ export const TaskColumn = ({ column, tasks }: TaskColumnProps) => {
       >
         <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
-            <TaskCard key={task.id} task={task} />
+            <TaskCard key={task.id} task={task} onTaskUpdate={onTaskUpdate} />
           ))}
         </SortableContext>
         

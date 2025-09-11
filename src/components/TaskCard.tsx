@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Calendar, GripVertical } from "lucide-react";
+import { Calendar, GripVertical, Edit3 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { InlineEditTask } from "./InlineEditTask";
 
 interface Task {
   id: string;
@@ -17,9 +20,11 @@ interface Task {
 
 interface TaskCardProps {
   task: Task;
+  onTaskUpdate?: (updatedTask: Task) => void;
 }
 
-export const TaskCard = ({ task }: TaskCardProps) => {
+export const TaskCard = ({ task, onTaskUpdate }: TaskCardProps) => {
+  const [isEditing, setIsEditing] = useState(false);
   const {
     attributes,
     listeners,
@@ -57,6 +62,25 @@ export const TaskCard = ({ task }: TaskCardProps) => {
 
   const isOverdue = task.dueDate && task.dueDate < new Date() && task.status !== "done";
 
+  const handleSave = (updatedTask: Task) => {
+    setIsEditing(false);
+    onTaskUpdate?.(updatedTask);
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <InlineEditTask 
+        task={task} 
+        onSave={handleSave} 
+        onCancel={handleCancel} 
+      />
+    );
+  }
+
   return (
     <div
       ref={setNodeRef}
@@ -66,12 +90,22 @@ export const TaskCard = ({ task }: TaskCardProps) => {
       }`}
       {...attributes}
     >
-      {/* Drag Handle */}
-      <div
-        {...listeners}
-        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-muted rounded"
-      >
-        <GripVertical className="w-4 h-4 text-muted-foreground" />
+      {/* Action Buttons */}
+      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center space-x-1">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setIsEditing(true)}
+          className="h-6 w-6 p-0 hover:bg-primary/20 hover:text-primary"
+        >
+          <Edit3 className="w-3 h-3" />
+        </Button>
+        <div
+          {...listeners}
+          className="p-1 hover:bg-muted rounded cursor-grab active:cursor-grabbing"
+        >
+          <GripVertical className="w-4 h-4 text-muted-foreground" />
+        </div>
       </div>
 
       <div className="space-y-3">
