@@ -1,22 +1,40 @@
 import { useState } from "react";
-import { Plus, Users, Download, Trash2, Settings } from "lucide-react";
+import { Plus, Users, Download, Trash2, Settings, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ProjectBoard } from "./ProjectBoard";
 import { CreateProjectModal } from "./CreateProjectModal";
+import { useProjects } from "@/hooks/useProjects";
+import { Project as ApiProject } from "@/types/api";
 
 interface Project {
   id: string;
   name: string;
   description: string;
-  status: "active" | "completed" | "archived";
+  status: "active" | "completed" | "archived" | "draft";
   isPublic: boolean;
   owner: string;
   collaborators: number;
   tasksCount: number;
   completedTasks: number;
   createdAt: Date;
+  deletionRequested?: boolean;
 }
+
+// Transform API project to UI project format
+const transformApiProject = (apiProject: ApiProject): Project => ({
+  id: apiProject.id.toString(),
+  name: apiProject.name,
+  description: apiProject.description,
+  status: apiProject.status === 'draft' ? 'active' : apiProject.status as "active" | "completed" | "archived",
+  isPublic: false, // API doesn't have this field, defaulting to false
+  owner: apiProject.user.name,
+  collaborators: Math.floor(Math.random() * 8) + 1, // API doesn't have this, using random for demo
+  tasksCount: Math.floor(Math.random() * 50) + 5, // API doesn't have this, using random for demo
+  completedTasks: Math.floor(Math.random() * 30), // API doesn't have this, using random for demo
+  createdAt: new Date(apiProject.created_at),
+  deletionRequested: apiProject.deletion_requested,
+});
 
 // Sample data - replace with API integration
 const sampleProjects: Project[] = [
@@ -61,11 +79,50 @@ const sampleProjects: Project[] = [
 export const ProjectDashboard = () => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [projects] = useState<Project[]>(sampleProjects);
+  
+  // Fetch projects from API
+  const { data: apiData, isLoading, error, isError } = useProjects({ per_page: 50 });
+  
+  // Debug the raw API data
+  console.log('🔍 Raw apiData:', apiData);
+  console.log('🔍 apiData exists:', !!apiData);
+  console.log('🔍 apiData is array:', Array.isArray(apiData));
+  console.log('🔍 apiData length:', apiData?.length);
+  
+  // Use API data if available, otherwise fallback to sample data
+  // Note: apiData is the direct projects array from the hook
+  const projects = apiData && Array.isArray(apiData)
+    ? apiData.map(transformApiProject)
+    : sampleProjects;
+    
+  const isUsingFallback = !apiData || !Array.isArray(apiData) || isError;
+  
+  // DETAILED DEBUGGING
+  console.log('========== DEBUGGING DATA FLOW ==========');
+  console.log('1. apiData (direct array):', apiData);
+  console.log('2. apiData is array:', Array.isArray(apiData));
+  console.log('3. First API project:', apiData?.[0]);
+  console.log('4. Transformed projects array:', projects);
+  console.log('5. First transformed project:', projects[0]);
+  console.log('6. Projects length:', projects.length);
+  console.log('7. Using fallback:', isUsingFallback);
+  console.log('8. Sample projects length:', sampleProjects.length);
+  console.log('==========================================');
+    
+  // Debug logging
+  console.log('API Status:', { 
+    isLoading, 
+    isError, 
+    hasApiData: !!apiData, 
+    apiDataLength: apiData?.length || 0,
+    projectsCount: projects.length, 
+    usingFallback: isUsingFallback 
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active": return "bg-warning/10 text-warning border-warning/20";
+      case "draft": return "bg-blue-500/10 text-blue-500 border-blue-500/20";
       case "completed": return "bg-success/10 text-success border-success/20";
       case "archived": return "bg-muted text-muted-foreground";
       default: return "bg-muted text-muted-foreground";
@@ -75,6 +132,17 @@ export const ProjectDashboard = () => {
   const getProgress = (completed: number, total: number) => {
     return total > 0 ? Math.round((completed / total) * 100) : 0;
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading projects...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (selectedProject) {
     return (
@@ -96,9 +164,22 @@ export const ProjectDashboard = () => {
             <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
               Project Dashboard
             </h1>
-            <p className="text-muted-foreground mt-2">
-              Manage your projects and collaborate with your team
-            </p>
+            <div className="flex items-center gap-3 mt-2">
+              <p className="text-muted-foreground">
+                Manage your projects and collaborate with your team
+              </p>
+              {isError && (
+                <Badge variant="destructive" className="flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  API Offline - Using Demo Data
+                </Badge>
+              )}
+              {!isError && !isUsingFallback && (
+                <Badge variant="default" className="bg-green-500">
+                  Live Data
+                </Badge>
+              )}
+            </div>
           </div>
           <Button 
             onClick={() => setShowCreateModal(true)}

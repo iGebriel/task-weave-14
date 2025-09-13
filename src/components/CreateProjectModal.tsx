@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Loader2 } from "lucide-react";
+import { useCreateProject } from "@/hooks/useProjects";
 
 interface CreateProjectModalProps {
   open: boolean;
@@ -16,33 +18,57 @@ export const CreateProjectModal = ({ open, onClose }: CreateProjectModalProps) =
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    isPublic: false,
+    status: "draft" as const,
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const createProjectMutation = useCreateProject();
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Integrate with API
-    console.log("Creating project:", formData);
     
-    // Reset form
-    setFormData({
-      name: "",
-      description: "",
-      isPublic: false,
-    });
-    
-    onClose();
+    try {
+      await createProjectMutation.mutateAsync({
+        project: {
+          name: formData.name.trim(),
+          description: formData.description.trim(),
+          status: formData.status,
+        },
+      });
+      
+      // Reset form and close modal on success
+      setFormData({
+        name: "",
+        description: "",
+        status: "draft",
+      });
+      onClose();
+    } catch (error) {
+      // Error handling is done by the hook
+      console.error('Failed to create project:', error);
+    }
   };
 
-  const handleInputChange = (field: string, value: string | boolean) => {
+  const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: value,
     }));
   };
 
+  // Reset form when modal closes
+  const handleClose = () => {
+    if (!createProjectMutation.isPending) {
+      setFormData({
+        name: "",
+        description: "",
+        status: "draft",
+      });
+      onClose();
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px] card-elegant border-0">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
@@ -73,39 +99,49 @@ export const CreateProjectModal = ({ open, onClose }: CreateProjectModalProps) =
               id="description"
               value={formData.description}
               onChange={(e) => handleInputChange("description", e.target.value)}
-              placeholder="Describe your project goals and objectives"
+              placeholder="Describe your project goals and objectives (minimum 10 characters)"
               className="border-border focus:ring-primary min-h-[100px]"
               rows={4}
+              required
+              minLength={10}
             />
           </div>
 
-          <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border">
-            <div className="space-y-1">
-              <Label className="text-sm font-medium">Project Visibility</Label>
-              <p className="text-xs text-muted-foreground">
-                {formData.isPublic 
-                  ? "Anyone can view and contribute to this project"
-                  : "Only invited collaborators can access this project"
-                }
-              </p>
-            </div>
-            <div className="flex items-center space-x-3">
-              <Badge variant={formData.isPublic ? "default" : "outline"} className="text-xs">
-                {formData.isPublic ? "Public" : "Private"}
-              </Badge>
-              <Switch
-                checked={formData.isPublic}
-                onCheckedChange={(checked) => handleInputChange("isPublic", checked)}
-                className="data-[state=checked]:bg-primary"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="status" className="text-sm font-medium">
+              Initial Status
+            </Label>
+            <Select value={formData.status} onValueChange={(value) => handleInputChange("status", value)}>
+              <SelectTrigger className="border-border focus:ring-primary">
+                <SelectValue placeholder="Select project status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="draft">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="bg-muted text-muted-foreground border-muted/20">
+                      Draft
+                    </Badge>
+                    <span className="text-sm">Work in progress</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="active">
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-warning/10 text-warning border-warning/20">
+                      Active
+                    </Badge>
+                    <span className="text-sm">Currently working</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex justify-end space-x-3 pt-4">
             <Button
               type="button"
               variant="outline"
-              onClick={onClose}
+              onClick={handleClose}
+              disabled={createProjectMutation.isPending}
               className="border-border hover:bg-secondary/50"
             >
               Cancel
@@ -113,9 +149,20 @@ export const CreateProjectModal = ({ open, onClose }: CreateProjectModalProps) =
             <Button
               type="submit"
               className="btn-hero"
-              disabled={!formData.name.trim()}
+              disabled={
+                !formData.name.trim() || 
+                formData.description.trim().length < 10 || 
+                createProjectMutation.isPending
+              }
             >
-              Create Project
+              {createProjectMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                'Create Project'
+              )}
             </Button>
           </div>
         </form>
