@@ -11,7 +11,7 @@ interface Project {
   id: string;
   name: string;
   description: string;
-  status: "active" | "completed" | "archived";
+  status: "active" | "completed" | "archived" | "draft";
   isPublic: boolean;
   owner: string;
   collaborators: number;

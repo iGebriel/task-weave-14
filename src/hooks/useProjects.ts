@@ -43,12 +43,6 @@ export const useProjects = (params: ProjectsQueryParams = {}) => {
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 2,
-    onError: (error) => {
-      console.error('🔥 useProjects onError:', error);
-    },
-    onSuccess: (data) => {
-      console.log('🌟 useProjects onSuccess:', data);
-    },
   });
 };
 

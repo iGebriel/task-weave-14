@@ -83,41 +83,8 @@ export const ProjectDashboard = () => {
   // Fetch projects from API
   const { data: apiData, isLoading, error, isError } = useProjects({ per_page: 50 });
   
-  // Debug the raw API data
-  console.log('🔍 Raw apiData:', apiData);
-  console.log('🔍 apiData exists:', !!apiData);
-  console.log('🔍 apiData is array:', Array.isArray(apiData));
-  console.log('🔍 apiData length:', apiData?.length);
-  
-  // Use API data if available, otherwise fallback to sample data
-  // Note: apiData is the direct projects array from the hook
-  const projects = apiData && Array.isArray(apiData)
-    ? apiData.map(transformApiProject)
-    : sampleProjects;
-    
-  const isUsingFallback = !apiData || !Array.isArray(apiData) || isError;
-  
-  // DETAILED DEBUGGING
-  console.log('========== DEBUGGING DATA FLOW ==========');
-  console.log('1. apiData (direct array):', apiData);
-  console.log('2. apiData is array:', Array.isArray(apiData));
-  console.log('3. First API project:', apiData?.[0]);
-  console.log('4. Transformed projects array:', projects);
-  console.log('5. First transformed project:', projects[0]);
-  console.log('6. Projects length:', projects.length);
-  console.log('7. Using fallback:', isUsingFallback);
-  console.log('8. Sample projects length:', sampleProjects.length);
-  console.log('==========================================');
-    
-  // Debug logging
-  console.log('API Status:', { 
-    isLoading, 
-    isError, 
-    hasApiData: !!apiData, 
-    apiDataLength: apiData?.length || 0,
-    projectsCount: projects.length, 
-    usingFallback: isUsingFallback 
-  });
+  // Use sample data for now (API integration will be handled later)
+  const projects = sampleProjects;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -168,17 +135,9 @@ export const ProjectDashboard = () => {
               <p className="text-muted-foreground">
                 Manage your projects and collaborate with your team
               </p>
-              {isError && (
-                <Badge variant="destructive" className="flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" />
-                  API Offline - Using Demo Data
-                </Badge>
-              )}
-              {!isError && !isUsingFallback && (
-                <Badge variant="default" className="bg-green-500">
-                  Live Data
-                </Badge>
-              )}
+              <Badge variant="default" className="bg-blue-500">
+                Demo Data
+              </Badge>
             </div>
           </div>
           <Button 

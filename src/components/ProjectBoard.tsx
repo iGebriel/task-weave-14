@@ -9,12 +9,13 @@ import { ExportModal } from "./ExportModal";
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import { toast } from "sonner";
 
 interface Project {
   id: string;
   name: string;
   description: string;
-  status: "active" | "completed" | "archived";
+  status: "active" | "completed" | "archived" | "draft";
   isPublic: boolean;
   owner: string;
   collaborators: number;
@@ -119,16 +120,34 @@ export const ProjectBoard = ({ project, projects = [], onBack, onProjectChange }
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     
-    if (!over) return;
+    if (!over) {
+      setActiveTask(null);
+      return;
+    }
 
     const taskId = active.id as string;
     const newStatus = over.id as "todo" | "progress" | "done";
+    
+    // Find the task being moved
+    const task = tasks.find(t => t.id === taskId);
+    
+    // Only update if status actually changed
+    if (task && task.status !== newStatus) {
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.id === taskId ? { ...task, status: newStatus } : task
+        )
+      );
 
-    setTasks(prevTasks =>
-      prevTasks.map(task =>
-        task.id === taskId ? { ...task, status: newStatus } : task
-      )
-    );
+      // Show success feedback
+      const statusNames = {
+        todo: "To Do",
+        progress: "In Progress", 
+        done: "Done"
+      };
+      
+      toast.success(`Task moved to ${statusNames[newStatus]}`);
+    }
 
     setActiveTask(null);
   };

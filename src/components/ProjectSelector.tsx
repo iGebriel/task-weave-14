@@ -12,7 +12,7 @@ interface Project {
   id: string;
   name: string;
   description: string;
-  status: "active" | "completed" | "archived";
+  status: "active" | "completed" | "archived" | "draft";
   isPublic: boolean;
   owner: string;
   collaborators: number;
@@ -31,6 +31,7 @@ export const ProjectSelector = ({ projects, currentProject, onProjectChange }: P
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active": return "bg-warning/10 text-warning border-warning/20";
+      case "draft": return "bg-blue-500/10 text-blue-500 border-blue-500/20";
       case "completed": return "bg-success/10 text-success border-success/20";
       case "archived": return "bg-muted text-muted-foreground";
       default: return "bg-muted text-muted-foreground";
