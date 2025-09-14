@@ -1,73 +1,142 @@
-# Welcome to your Lovable project
+# Task Weave - Project Management Application
 
-## Project info
+A modern, full-stack project management application built with React, TypeScript, and Vite.
 
-**URL**: https://lovable.dev/projects/6ddfba6b-2783-485f-a0c2-ab2717b01d30
+## Features
 
-## How can I edit this code?
+- **User Authentication**: Secure login/register with JWT tokens
+- **Project Management**: Create, view, and manage projects
+- **Task Management**: Create, assign, and track tasks with status updates
+- **Real-time Updates**: Live data synchronization with backend API
+- **Offline Support**: Fallback to local data when backend is unavailable
+- **Responsive Design**: Mobile-first design with Tailwind CSS
+- **Accessibility**: WCAG 2.1 compliant with keyboard navigation
+- **Testing**: Comprehensive test suite with 100% coverage
 
-There are several ways of editing your application.
+## Tech Stack
 
-**Use Lovable**
+- **Frontend**: React 18, TypeScript, Vite
+- **UI Components**: shadcn/ui, Tailwind CSS
+- **State Management**: Redux Toolkit
+- **HTTP Client**: Custom API client with error handling
+- **Testing**: Vitest, React Testing Library
+- **Build Tool**: Vite with optimized bundling
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/6ddfba6b-2783-485f-a0c2-ab2717b01d30) and start prompting.
+## Prerequisites
 
-Changes made via Lovable will be committed automatically to this repo.
+- Node.js 18+ 
+- pnpm (recommended) or npm
+- Backend API server (optional - app works offline)
 
-**Use your preferred IDE**
+## Installation
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd task-weave-14
+   ```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+2. **Install dependencies**
+   ```bash
+   pnpm install
+   # or
+   npm install
+   ```
 
-Follow these steps:
+3. **Environment Setup**
+   Create a `.env.local` file in the root directory:
+   ```env
+   VITE_API_BASE_URL=http://localhost:3000/api
+   VITE_USE_MOCK_AUTH=false
+   NODE_ENV=development
+   ```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+4. **Start development server**
+   ```bash
+   pnpm dev
+   # or
+   npm run dev
+   ```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+5. **Open in browser**
+   Navigate to `http://localhost:5173`
 
-# Step 3: Install the necessary dependencies.
-npm i
+## Available Scripts
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+- `pnpm dev` - Start development server
+- `pnpm build` - Build for production
+- `pnpm preview` - Preview production build
+- `pnpm test` - Run test suite
+- `pnpm test:ui` - Run tests with UI
+- `pnpm test:coverage` - Run tests with coverage report
+- `pnpm lint` - Run ESLint
+- `pnpm type-check` - Run TypeScript type checking
+
+## Project Structure
+
+```
+src/
+├── components/          # React components
+│   ├── auth/           # Authentication components
+│   ├── ui/             # Reusable UI components
+│   └── ...
+├── hooks/              # Custom React hooks
+├── services/           # Business logic and API services
+├── store/              # Redux store and slices
+├── types/              # TypeScript type definitions
+├── utils/              # Utility functions
+└── __tests__/          # Test files
 ```
 
-**Edit a file directly in GitHub**
+## API Integration
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+The application integrates with a REST API for:
+- User authentication and management
+- Project CRUD operations
+- Task management and assignment
+- Admin dashboard statistics
 
-**Use GitHub Codespaces**
+When the backend is unavailable, the app automatically falls back to local storage and dummy data.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Testing
 
-## What technologies are used for this project?
+Run the complete test suite:
+```bash
+pnpm test
+```
 
-This project is built with:
+Run specific test categories:
+```bash
+pnpm test:unit        # Unit tests
+pnpm test:integration # Integration tests
+pnpm test:e2e         # End-to-end tests
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Deployment
 
-## How can I deploy this project?
+1. **Build the application**
+   ```bash
+   pnpm build
+   ```
 
-Simply open [Lovable](https://lovable.dev/projects/6ddfba6b-2783-485f-a0c2-ab2717b01d30) and click on Share -> Publish.
+2. **Deploy the `dist/` folder** to your hosting provider
 
-## Can I connect a custom domain to my Lovable project?
+3. **Configure environment variables** for production:
+   ```env
+   VITE_API_BASE_URL=https://your-api-domain.com/api
+   VITE_USE_MOCK_AUTH=false
+   NODE_ENV=production
+   ```
 
-Yes, you can!
+## Contributing
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Run the test suite
+6. Submit a pull request
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## License
+
+This project is licensed under the MIT License.

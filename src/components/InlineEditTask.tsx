@@ -92,6 +92,7 @@ export const InlineEditTask = ({ task, onSave, onCancel }: InlineEditTaskProps) 
               variant="ghost"
               onClick={handleSave}
               className="h-7 w-7 p-0 hover:bg-success/20 hover:text-success"
+              aria-label="Save task changes"
             >
               <Check className="w-4 h-4" />
             </Button>
@@ -100,6 +101,7 @@ export const InlineEditTask = ({ task, onSave, onCancel }: InlineEditTaskProps) 
               variant="ghost"
               onClick={onCancel}
               className="h-7 w-7 p-0 hover:bg-destructive/20 hover:text-destructive"
+              aria-label="Cancel task editing"
             >
               <X className="w-4 h-4" />
             </Button>

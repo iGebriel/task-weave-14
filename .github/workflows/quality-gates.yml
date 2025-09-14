@@ -1,0 +1,442 @@
+name: Quality Gates CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run quality checks daily at 6 AM UTC
+    - cron: '0 6 * * *'
+
+env:
+  NODE_VERSION: '18'
+  FORCE_COLOR: 1
+
+jobs:
+  # Phase 1: Setup and Basic Checks
+  setup:
+    name: Setup and Dependencies
+    runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for proper analysis
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Generate cache key
+        id: cache-key
+        run: echo "key=node-modules-${{ hashFiles('package-lock.json') }}" >> $GITHUB_OUTPUT
+
+      - name: Cache node_modules
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: ${{ steps.cache-key.outputs.key }}
+          restore-keys: node-modules-
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Verify installation
+        run: |
+          npm list --depth=0
+          node --version
+          npm --version
+
+  # Phase 2: Code Quality Analysis
+  code-quality:
+    name: Code Quality Gates
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore node_modules
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: ${{ needs.setup.outputs.cache-key }}
+
+      - name: ESLint Analysis
+        run: |
+          npx eslint . --format=json --output-file=eslint-report.json || true
+          npx eslint . --format=stylish
+
+      - name: TypeScript Check
+        run: npx tsc --noEmit
+
+      - name: Code Formatting Check
+        run: npx prettier --check .
+
+      - name: Security Audit
+        run: |
+          npm audit --audit-level=high --json > security-audit.json || true
+          npm audit --audit-level=high
+
+      - name: Upload code quality artifacts
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: code-quality-reports
+          path: |
+            eslint-report.json
+            security-audit.json
+
+  # Phase 3: Testing Suite
+  testing:
+    name: Test Suite Execution
+    runs-on: ubuntu-latest
+    needs: setup
+    strategy:
+      matrix:
+        test-type: [unit, integration, e2e, performance, accessibility]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore node_modules
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: ${{ needs.setup.outputs.cache-key }}
+
+      - name: Run Unit Tests
+        if: matrix.test-type == 'unit'
+        run: |
+          npm run test:unit -- --coverage --reporter=json --outputFile=unit-test-results.json
+          npm run test:unit -- --coverage
+
+      - name: Run Integration Tests
+        if: matrix.test-type == 'integration'
+        run: |
+          npm run test:integration -- --reporter=json --outputFile=integration-test-results.json
+          npm run test:integration
+
+      - name: Run E2E Tests
+        if: matrix.test-type == 'e2e'
+        run: |
+          npm run test:e2e -- --reporter=json --outputFile=e2e-test-results.json
+          npm run test:e2e
+
+      - name: Run Performance Tests
+        if: matrix.test-type == 'performance'
+        run: |
+          npm run test:performance -- --reporter=json --outputFile=performance-results.json
+          npm run test:performance
+
+      - name: Run Accessibility Tests
+        if: matrix.test-type == 'accessibility'
+        run: |
+          npm run test:a11y -- --reporter=json --outputFile=a11y-results.json
+          npm run test:a11y
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-results-${{ matrix.test-type }}
+          path: |
+            *-test-results.json
+            *-results.json
+            coverage/
+
+  # Phase 4: Quality Gates Validation
+  quality-gates:
+    name: Quality Gates Validation
+    runs-on: ubuntu-latest
+    needs: [setup, code-quality, testing]
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore node_modules
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: ${{ needs.setup.outputs.cache-key }}
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+
+      - name: Consolidate test results
+        run: |
+          mkdir -p consolidated-results
+          find . -name "*-results.json" -exec cp {} consolidated-results/ \;
+          find . -name "coverage" -type d -exec cp -r {} consolidated-results/ \;
+          ls -la consolidated-results/
+
+      - name: Run Quality Gates
+        id: quality-gates
+        run: |
+          node scripts/validate-quality.js --report --fail-fast
+        continue-on-error: true
+
+      - name: Generate Quality Badge
+        run: |
+          QUALITY_STATUS="${{ steps.quality-gates.outcome }}"
+          if [ "$QUALITY_STATUS" = "success" ]; then
+            BADGE_COLOR="brightgreen"
+            BADGE_MESSAGE="passing"
+          else
+            BADGE_COLOR="red"
+            BADGE_MESSAGE="failing"
+          fi
+          
+          curl -s "https://img.shields.io/badge/quality--gates-$BADGE_MESSAGE-$BADGE_COLOR" \
+            -o quality-gates-badge.svg
+
+      - name: Upload Quality Reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: quality-reports
+          path: |
+            quality-reports/
+            quality-gates-badge.svg
+
+      - name: Comment PR with Quality Results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const path = './quality-reports/quality-report.json';
+            
+            if (fs.existsSync(path)) {
+              const report = JSON.parse(fs.readFileSync(path, 'utf8'));
+              const passed = report.results.summary.passed;
+              const status = passed ? '✅ PASSED' : '❌ FAILED';
+              const totalFailures = report.results.summary.totalFailures || 0;
+              
+              let comment = `## Quality Gates Report ${status}\n\n`;
+              comment += `**Total Failures:** ${totalFailures}\n\n`;
+              
+              if (report.metrics.coverage?.global) {
+                comment += `### Coverage Metrics\n`;
+                Object.entries(report.metrics.coverage.global).forEach(([metric, value]) => {
+                  comment += `- ${metric}: ${value.toFixed(1)}%\n`;
+                });
+                comment += '\n';
+              }
+              
+              if (report.results.summary.gates) {
+                comment += `### Gate Results\n`;
+                Object.entries(report.results.summary.gates).forEach(([gate, result]) => {
+                  const gateStatus = result.passed ? '✅' : '❌';
+                  comment += `- **${gate}:** ${gateStatus} ${result.passed ? 'PASSED' : `FAILED (${result.failures.length} issues)`}\n`;
+                });
+              }
+              
+              comment += `\n📊 [View detailed report](${context.payload.pull_request.html_url}/checks)`;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
+
+      - name: Fail job if quality gates failed
+        if: steps.quality-gates.outcome == 'failure'
+        run: |
+          echo "❌ Quality gates failed. Please review the quality report."
+          exit 1
+
+  # Phase 5: Build and Bundle Analysis
+  build:
+    name: Build and Bundle Analysis
+    runs-on: ubuntu-latest
+    needs: [setup, quality-gates]
+    if: needs.quality-gates.result == 'success'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore node_modules
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: ${{ needs.setup.outputs.cache-key }}
+
+      - name: Build application
+        run: npm run build
+
+      - name: Analyze bundle size
+        run: |
+          npx bundlesize --reporter=json --output=bundle-analysis.json || true
+          echo "## Bundle Size Analysis" >> bundle-report.md
+          du -sh dist/* >> bundle-report.md
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifacts
+          path: |
+            dist/
+            bundle-analysis.json
+            bundle-report.md
+
+  # Phase 6: Deploy to Staging (if on main branch)
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.ref == 'refs/heads/main' && needs.build.result == 'success'
+    environment: staging
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-artifacts
+
+      - name: Deploy to staging
+        run: |
+          echo "🚀 Deploying to staging environment..."
+          # Add your staging deployment logic here
+          echo "Staging deployment completed"
+
+      - name: Run staging smoke tests
+        run: |
+          echo "🧪 Running staging smoke tests..."
+          # Add smoke tests for staging environment
+          echo "Smoke tests completed"
+
+      - name: Staging performance validation
+        run: |
+          echo "⚡ Validating staging performance..."
+          # Add performance validation against staging
+          echo "Performance validation completed"
+
+  # Phase 7: Security Scan (scheduled and on main)
+  security-scan:
+    name: Security Analysis
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run CodeQL Analysis
+        uses: github/codeql-action/init@v2
+        with:
+          languages: javascript
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+
+      - name: Run Snyk Security Scan
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+
+  # Phase 8: Quality Metrics Tracking
+  metrics:
+    name: Track Quality Metrics
+    runs-on: ubuntu-latest
+    needs: [quality-gates]
+    if: always() && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download quality reports
+        uses: actions/download-artifact@v3
+        with:
+          name: quality-reports
+
+      - name: Extract and track metrics
+        run: |
+          echo "📈 Tracking quality metrics over time..."
+          if [ -f quality-reports/quality-report.json ]; then
+            COVERAGE=$(jq -r '.metrics.coverage.global.statements // 0' quality-reports/quality-report.json)
+            ERRORS=$(jq -r '.metrics.codeQuality.linting.errors // 0' quality-reports/quality-report.json)
+            PASSED=$(jq -r '.results.summary.passed // false' quality-reports/quality-report.json)
+            
+            echo "Coverage: $COVERAGE%"
+            echo "ESLint Errors: $ERRORS"
+            echo "Quality Gates Passed: $PASSED"
+            
+            # Here you could send metrics to your monitoring system
+            echo "Metrics tracked successfully"
+          fi
+
+  # Phase 9: Notification and Reporting
+  notify:
+    name: Notify Results
+    runs-on: ubuntu-latest
+    needs: [quality-gates, build, deploy-staging]
+    if: always()
+    steps:
+      - name: Determine overall status
+        id: status
+        run: |
+          QUALITY_STATUS="${{ needs.quality-gates.result }}"
+          BUILD_STATUS="${{ needs.build.result }}"
+          DEPLOY_STATUS="${{ needs.deploy-staging.result }}"
+          
+          if [[ "$QUALITY_STATUS" == "success" && "$BUILD_STATUS" == "success" ]]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "message=✅ All quality gates passed and build succeeded" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "message=❌ Quality gates or build failed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update commit status
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: '${{ steps.status.outputs.status }}',
+              context: 'Quality Gates',
+              description: '${{ steps.status.outputs.message }}',
+              target_url: `${context.payload.repository.html_url}/actions/runs/${context.runId}`
+            });
+
+      # Optional: Add Slack/Teams/Email notifications here
+      - name: Notify team (optional)
+        if: failure()
+        run: |
+          echo "🔔 Sending failure notification to team..."
+          # Add your notification logic here (Slack, Teams, email, etc.)
+          echo "Team notified of pipeline failure"

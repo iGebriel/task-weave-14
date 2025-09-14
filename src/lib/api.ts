@@ -5,89 +5,130 @@ import {
   CreateProjectRequest,
   UpdateProjectRequest,
   ProjectsQueryParams,
+  LoginRequest,
+  AuthResponse,
+  RefreshTokenRequest,
+  RefreshTokenResponse,
+  Task,
+  CreateTaskRequest,
+  UpdateTaskRequest,
+  TasksQueryParams,
+  TaskExportParams,
+  AdminDashboardStats,
+  AdminNotification,
+  NotificationStats,
 } from '@/types/api';
+import { HttpClient } from './http-client';
 
 class ApiClient {
-  private baseURL = 'http://localhost:3008/api/v1';
+  private httpClient: HttpClient;
 
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<ApiResponse<T>> {
-    const url = `${this.baseURL}${endpoint}`;
-    
-    const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    };
+  constructor() {
+    this.httpClient = new HttpClient();
+  }
 
-    console.log('🌐 API Request:', { url, method: config.method || 'GET', headers: config.headers });
+  // Authentication methods
+  async login(credentials: LoginRequest): Promise<ApiResponse<AuthResponse>> {
+    return this.httpClient.post<AuthResponse>('/auth/login', credentials);
+  }
 
-    try {
-      const response = await fetch(url, config);
-      console.log('📡 API Response:', { status: response.status, statusText: response.statusText, headers: Object.fromEntries(response.headers.entries()) });
-      
-      const data = await response.json();
-      console.log('📦 API Data:', data);
-      
-      if (!response.ok) {
-        console.error('❌ API Error Response:', data);
-        throw new Error(data.message || `HTTP error! status: ${response.status}`);
-      }
-      
-      return data;
-    } catch (error) {
-      console.error('💥 API Request Failed:', { url, error: error.message, stack: error.stack });
-      throw error;
-    }
+  async refreshToken(refreshToken: RefreshTokenRequest): Promise<ApiResponse<RefreshTokenResponse>> {
+    return this.httpClient.post<RefreshTokenResponse>('/auth/refresh', refreshToken);
+  }
+
+  async logout(): Promise<ApiResponse<null>> {
+    return this.httpClient.post<null>('/auth/logout');
+  }
+
+  // Set authentication token
+  setAuthToken(token: string | null): void {
+    this.httpClient.setToken(token);
   }
 
   // Project Methods
   async getProjects(params: ProjectsQueryParams = {}): Promise<ApiResponse<PaginatedResponse<Project>>> {
-    const queryString = new URLSearchParams(
-      Object.entries(params).reduce((acc, [key, value]) => {
-        if (value !== undefined) {
-          acc[key] = value.toString();
-        }
-        return acc;
-      }, {} as Record<string, string>)
-    ).toString();
-
-    const endpoint = `/projects${queryString ? `?${queryString}` : ''}`;
-    return this.request<PaginatedResponse<Project>>(endpoint);
+    return this.httpClient.get<PaginatedResponse<Project>>('/projects', params);
   }
 
   async getProject(id: number): Promise<ApiResponse<Project>> {
-    return this.request<Project>(`/projects/${id}`);
+    return this.httpClient.get<Project>(`/projects/${id}`);
   }
 
   async createProject(data: CreateProjectRequest): Promise<ApiResponse<Project>> {
-    return this.request<Project>('/projects', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    return this.httpClient.post<Project>('/projects', data);
   }
 
   async updateProject(id: number, data: UpdateProjectRequest): Promise<ApiResponse<Project>> {
-    return this.request<Project>(`/projects/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
+    return this.httpClient.patch<Project>(`/projects/${id}`, data);
   }
 
   async deleteProject(id: number): Promise<ApiResponse<null>> {
-    return this.request<null>(`/projects/${id}`, {
-      method: 'DELETE',
-    });
+    return this.httpClient.delete<null>(`/projects/${id}`);
   }
 
   async requestProjectDeletion(id: number): Promise<ApiResponse<Project>> {
-    return this.request<Project>(`/projects/${id}/request_deletion`, {
-      method: 'POST',
-    });
+    return this.httpClient.post<Project>(`/projects/${id}/request_deletion`);
+  }
+
+  async cancelProjectDeletion(id: number): Promise<ApiResponse<Project>> {
+    return this.httpClient.delete<Project>(`/projects/${id}/cancel_deletion`);
+  }
+
+  // Task Methods
+  async getTasks(params: TasksQueryParams = {}): Promise<ApiResponse<PaginatedResponse<Task>>> {
+    return this.httpClient.get<PaginatedResponse<Task>>('/tasks', params);
+  }
+
+  async getTask(id: number): Promise<ApiResponse<Task>> {
+    return this.httpClient.get<Task>(`/tasks/${id}`);
+  }
+
+  async createTask(data: CreateTaskRequest): Promise<ApiResponse<Task>> {
+    return this.httpClient.post<Task>('/tasks', data);
+  }
+
+  async updateTask(id: number, data: UpdateTaskRequest): Promise<ApiResponse<Task>> {
+    return this.httpClient.patch<Task>(`/tasks/${id}`, data);
+  }
+
+  async deleteTask(id: number): Promise<ApiResponse<null>> {
+    return this.httpClient.delete<null>(`/tasks/${id}`);
+  }
+
+  // Task Export
+  async exportProjectTasks(projectId: number, params: TaskExportParams = {}): Promise<any[] | void> {
+    if (params.format === 'csv') {
+      const filename = `project_${projectId}_tasks.csv`;
+      await this.httpClient.downloadFile(
+        `/projects/${projectId}/task_exports/export`,
+        filename,
+        params
+      );
+      return;
+    } else {
+      const response = await this.httpClient.get<any[]>(
+        `/projects/${projectId}/task_exports/export`,
+        params
+      );
+      return response.data || [];
+    }
+  }
+
+  // Admin Methods
+  async getAdminDashboardStats(): Promise<ApiResponse<AdminDashboardStats>> {
+    return this.httpClient.get<AdminDashboardStats>('/admin/notifications/stats');
+  }
+
+  async getAdminNotifications(params: Record<string, any> = {}): Promise<ApiResponse<PaginatedResponse<AdminNotification>>> {
+    return this.httpClient.get<PaginatedResponse<AdminNotification>>('/admin/notifications', params);
+  }
+
+  async acknowledgeNotification(id: number): Promise<ApiResponse<AdminNotification>> {
+    return this.httpClient.post<AdminNotification>(`/admin/notifications/${id}/acknowledge`);
+  }
+
+  async getNotificationStats(): Promise<ApiResponse<NotificationStats>> {
+    return this.httpClient.get<NotificationStats>('/admin/notifications/stats');
   }
 }
 

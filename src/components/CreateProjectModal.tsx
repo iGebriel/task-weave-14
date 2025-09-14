@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { ModalForm } from "@/components/forms/ModalForm";
+import { FormField } from "@/components/forms/FormField";
 import { useCreateProject } from "@/hooks/useProjects";
+import { StatusStyleManager } from "@/config/statusStyles";
+import { projectCreateSchema, validateData, type ProjectCreateInput } from "@/utils/validation";
 
 interface CreateProjectModalProps {
   open: boolean;
@@ -15,24 +15,37 @@ interface CreateProjectModalProps {
 }
 
 export const CreateProjectModal = ({ open, onClose }: CreateProjectModalProps) => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ProjectCreateInput>({
     name: "",
     description: "",
-    status: "draft" as const,
+    status: "draft",
   });
+  const [errors, setErrors] = useState<Record<string, string[]>>({});
 
   const createProjectMutation = useCreateProject();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
+    
+    // Validate form data
+    const validation = validateData(projectCreateSchema, formData);
+    if (!validation.success) {
+      const fieldErrors: Record<string, string[]> = {};
+      validation.errors?.forEach(error => {
+        // Simple error mapping - in production, you'd want more sophisticated field mapping
+        if (error.includes('name')) fieldErrors.name = [error];
+        else if (error.includes('description')) fieldErrors.description = [error];
+        else if (error.includes('status')) fieldErrors.status = [error];
+        else fieldErrors.general = fieldErrors.general ? [...fieldErrors.general, error] : [error];
+      });
+      setErrors(fieldErrors);
+      return;
+    }
     
     try {
       await createProjectMutation.mutateAsync({
-        project: {
-          name: formData.name.trim(),
-          description: formData.description.trim(),
-          status: formData.status,
-        },
+        project: validation.data!,
       });
       
       // Reset form and close modal on success
@@ -41,9 +54,9 @@ export const CreateProjectModal = ({ open, onClose }: CreateProjectModalProps) =
         description: "",
         status: "draft",
       });
+      setErrors({});
       onClose();
     } catch (error) {
-      // Error handling is done by the hook
       console.error('Failed to create project:', error);
     }
   };
@@ -68,105 +81,81 @@ export const CreateProjectModal = ({ open, onClose }: CreateProjectModalProps) =
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px] card-elegant border-0">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
-            Create New Project
-          </DialogTitle>
-        </DialogHeader>
+    <ModalForm
+      open={open}
+      onClose={handleClose}
+      title="Create New Project"
+      onSubmit={handleSubmit}
+      submitLabel="Create Project"
+      isSubmitting={createProjectMutation.isPending}
+      isSubmitDisabled={
+        !formData.name.trim() ||
+        formData.description.trim().length < 10
+      }
+      submitTestId="create-project-submit"
+      className="sm:max-w-[500px]"
+    >
+      <FormField
+        label="Project Name"
+        htmlFor="name"
+        required
+        error={errors.name?.[0]}
+      >
+        <Input
+          id="name"
+          value={formData.name}
+          onChange={(e) => handleInputChange("name", e.target.value)}
+          placeholder="Enter project name"
+          className="border-border focus:ring-primary"
+          required
+          data-testid="project-name-input"
+        />
+      </FormField>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="name" className="text-sm font-medium">
-              Project Name *
-            </Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => handleInputChange("name", e.target.value)}
-              placeholder="Enter project name"
-              className="border-border focus:ring-primary"
-              required
-            />
-          </div>
+      <FormField
+        label="Description"
+        htmlFor="description"
+        error={errors.description?.[0]}
+      >
+        <Textarea
+          id="description"
+          value={formData.description}
+          onChange={(e) => handleInputChange("description", e.target.value)}
+          placeholder="Describe your project goals and objectives"
+          className="border-border focus:ring-primary min-h-[100px]"
+          rows={4}
+          data-testid="project-description-input"
+        />
+      </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor="description" className="text-sm font-medium">
-              Description
-            </Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => handleInputChange("description", e.target.value)}
-              placeholder="Describe your project goals and objectives (minimum 10 characters)"
-              className="border-border focus:ring-primary min-h-[100px]"
-              rows={4}
-              required
-              minLength={10}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="status" className="text-sm font-medium">
-              Initial Status
-            </Label>
-            <Select value={formData.status} onValueChange={(value) => handleInputChange("status", value)}>
-              <SelectTrigger className="border-border focus:ring-primary">
-                <SelectValue placeholder="Select project status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="draft">
+      <FormField
+        label="Initial Status"
+        htmlFor="status"
+        error={errors.status?.[0]}
+      >
+        <Select value={formData.status} onValueChange={(value) => handleInputChange("status", value)}>
+          <SelectTrigger className="border-border focus:ring-primary">
+            <SelectValue placeholder="Select project status" />
+          </SelectTrigger>
+          <SelectContent>
+            {StatusStyleManager.getAllProjectStatuses()
+              .filter(({ value }) => value === 'draft' || value === 'active')
+              .map(({ value, config }) => (
+                <SelectItem key={value} value={value}>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="bg-muted text-muted-foreground border-muted/20">
-                      Draft
+                    <Badge className={config.className}>
+                      {config.label}
                     </Badge>
-                    <span className="text-sm">Work in progress</span>
+                    <span className="text-sm">
+                      {value === 'draft' ? 'Work in progress' : 'Currently working'}
+                    </span>
                   </div>
                 </SelectItem>
-                <SelectItem value="active">
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-warning/10 text-warning border-warning/20">
-                      Active
-                    </Badge>
-                    <span className="text-sm">Currently working</span>
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              disabled={createProjectMutation.isPending}
-              className="border-border hover:bg-secondary/50"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              className="btn-hero"
-              disabled={
-                !formData.name.trim() || 
-                formData.description.trim().length < 10 || 
-                createProjectMutation.isPending
-              }
-            >
-              {createProjectMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                'Create Project'
-              )}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+              ))
+            }
+          </SelectContent>
+        </Select>
+      </FormField>
+    </ModalForm>
   );
 };

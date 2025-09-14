@@ -55,13 +55,13 @@ export const LoginForm = ({ onLogin, onSwitchToRegister, onForgotPassword, isLoa
           <p className="text-muted-foreground mt-2">Sign in to your account</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" role="form" aria-label="Sign in to your account">
           <div className="space-y-2">
             <Label htmlFor="email" className="text-sm font-medium">
               Email Address
             </Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
               <Input
                 id="email"
                 type="email"
@@ -70,10 +70,14 @@ export const LoginForm = ({ onLogin, onSwitchToRegister, onForgotPassword, isLoa
                 className={`pl-10 ${errors.email ? 'border-destructive' : ''}`}
                 placeholder="Enter your email"
                 disabled={isLoading}
+                data-testid="email-input"
+                aria-describedby={errors.email ? "email-error" : undefined}
+                aria-invalid={!!errors.email}
+                required
               />
             </div>
             {errors.email && (
-              <p className="text-sm text-destructive">{errors.email}</p>
+              <p id="email-error" className="text-sm text-destructive" role="alert">{errors.email}</p>
             )}
           </div>
 
@@ -82,7 +86,7 @@ export const LoginForm = ({ onLogin, onSwitchToRegister, onForgotPassword, isLoa
               Password
             </Label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
@@ -91,18 +95,23 @@ export const LoginForm = ({ onLogin, onSwitchToRegister, onForgotPassword, isLoa
                 className={`pl-10 pr-10 ${errors.password ? 'border-destructive' : ''}`}
                 placeholder="Enter your password"
                 disabled={isLoading}
+                data-testid="password-input"
+                aria-describedby={errors.password ? "password-error" : undefined}
+                aria-invalid={!!errors.password}
+                required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 disabled={isLoading}
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
             {errors.password && (
-              <p className="text-sm text-destructive">{errors.password}</p>
+              <p id="password-error" className="text-sm text-destructive" role="alert">{errors.password}</p>
             )}
           </div>
 
@@ -112,6 +121,7 @@ export const LoginForm = ({ onLogin, onSwitchToRegister, onForgotPassword, isLoa
               onClick={onForgotPassword}
               className="text-sm text-primary hover:text-primary-glow transition-colors"
               disabled={isLoading}
+              aria-label="Reset your password"
             >
               Forgot password?
             </button>
@@ -121,6 +131,7 @@ export const LoginForm = ({ onLogin, onSwitchToRegister, onForgotPassword, isLoa
             type="submit"
             className="w-full btn-hero"
             disabled={isLoading}
+            data-testid="sign-in-button"
           >
             {isLoading ? (
               <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />

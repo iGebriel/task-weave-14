@@ -1,11 +1,16 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { Plus, Users, Download, Trash2, Settings, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StatsCard } from "@/components/ui/StatsCard";
 import { ProjectBoard } from "./ProjectBoard";
+import { ProjectCard } from "./ProjectCard";
 import { CreateProjectModal } from "./CreateProjectModal";
 import { useProjects } from "@/hooks/useProjects";
-import { Project as ApiProject } from "@/types/api";
+import { ProjectTransformer } from "@/services/transformers/ProjectTransformer";
+import { StatusStyleManager } from "@/config/statusStyles";
+import { SecurityUtils } from "@/utils/security";
+import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 
 interface Project {
   id: string;
@@ -21,20 +26,8 @@ interface Project {
   deletionRequested?: boolean;
 }
 
-// Transform API project to UI project format
-const transformApiProject = (apiProject: ApiProject): Project => ({
-  id: apiProject.id.toString(),
-  name: apiProject.name,
-  description: apiProject.description,
-  status: apiProject.status === 'draft' ? 'active' : apiProject.status as "active" | "completed" | "archived",
-  isPublic: false, // API doesn't have this field, defaulting to false
-  owner: apiProject.user.name,
-  collaborators: Math.floor(Math.random() * 8) + 1, // API doesn't have this, using random for demo
-  tasksCount: Math.floor(Math.random() * 50) + 5, // API doesn't have this, using random for demo
-  completedTasks: Math.floor(Math.random() * 30), // API doesn't have this, using random for demo
-  createdAt: new Date(apiProject.created_at),
-  deletionRequested: apiProject.deletion_requested,
-});
+// Transform API data to UI format using the ProjectTransformer service
+  // This follows SRP by separating transformation logic from UI logic
 
 // Sample data - replace with API integration
 const sampleProjects: Project[] = [
@@ -79,26 +72,63 @@ const sampleProjects: Project[] = [
 export const ProjectDashboard = () => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const dashboardRef = useRef<HTMLDivElement>(null);
   
   // Fetch projects from API
   const { data: apiData, isLoading, error, isError } = useProjects({ per_page: 50 });
   
-  // Use sample data for now (API integration will be handled later)
-  const projects = sampleProjects;
+  // Transform API data to UI format, fallback to sample data for demo
+  const projects = apiData && apiData.data ? ProjectTransformer.apiArrayToUi(apiData.data) : sampleProjects;
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active": return "bg-warning/10 text-warning border-warning/20";
-      case "draft": return "bg-blue-500/10 text-blue-500 border-blue-500/20";
-      case "completed": return "bg-success/10 text-success border-success/20";
-      case "archived": return "bg-muted text-muted-foreground";
-      default: return "bg-muted text-muted-foreground";
-    }
-  };
+  // Memoize project statistics to prevent recalculation on every render
+  const projectStats = useMemo(() => {
+    return {
+      total: projects.length,
+      active: projects.filter(p => p.status === "active").length,
+      completed: projects.filter(p => p.status === "completed").length,
+    };
+  }, [projects]);
 
-  const getProgress = (completed: number, total: number) => {
+  // Use configurable status system that follows OCP
+  const getStatusColor = useCallback((status: string) => {
+    return StatusStyleManager.getProjectStatusClass(status as "active" | "completed" | "archived" | "draft");
+  }, []);
+
+  // Memoize progress calculation to prevent unnecessary recalculations
+  const getProgress = useCallback((completed: number, total: number) => {
     return total > 0 ? Math.round((completed / total) * 100) : 0;
-  };
+  }, []);
+
+  // Keyboard shortcuts for project dashboard
+  useKeyboardNavigation({
+    containerRef: dashboardRef,
+    shortcuts: [
+      {
+        key: 'n',
+        ctrlKey: true,
+        callback: () => setShowCreateModal(true),
+        description: 'Create new project'
+      },
+      {
+        key: 'Escape',
+        callback: () => {
+          if (showCreateModal) {
+            setShowCreateModal(false);
+          }
+        },
+        description: 'Close modal or go back'
+      },
+      {
+        key: '/',
+        callback: () => {
+          // Focus search if available, or first project
+          const firstProject = dashboardRef.current?.querySelector('[data-testid="project-card"]') as HTMLElement;
+          firstProject?.focus();
+        },
+        description: 'Focus first project'
+      }
+    ]
+  });
 
   if (isLoading) {
     return (
@@ -106,6 +136,21 @@ export const ProjectDashboard = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading projects...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show API error if there's an error and no fallback data
+  if (isError && !sampleProjects.length) {
+    return (
+      <div className="min-h-screen p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 bg-destructive/10 rounded-lg flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-6 h-6 text-destructive" />
+          </div>
+          <p className="text-muted-foreground mb-4">Failed to load projects from API</p>
+          <p className="text-sm text-muted-foreground">{error?.message || 'Unknown error occurred'}</p>
         </div>
       </div>
     );
@@ -123,10 +168,10 @@ export const ProjectDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen p-6">
+    <div className="min-h-screen p-6" ref={dashboardRef}>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <header className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
               Project Dashboard
@@ -135,130 +180,71 @@ export const ProjectDashboard = () => {
               <p className="text-muted-foreground">
                 Manage your projects and collaborate with your team
               </p>
-              <Badge variant="default" className="bg-blue-500">
-                Demo Data
+              <Badge variant="default" className={apiData && apiData.data ? "bg-green-500" : "bg-blue-500"}>
+                {apiData && apiData.data ? "Live Data" : "Demo Data"}
               </Badge>
+              {isError && (
+                <Badge variant="destructive" className="ml-2">
+                  API Error
+                </Badge>
+              )}
             </div>
           </div>
-          <Button 
+          <Button
             onClick={() => setShowCreateModal(true)}
             className="btn-hero"
+            data-testid="create-project-button"
+            aria-label="Create a new project"
           >
             <Plus className="w-5 h-5 mr-2" />
             New Project
           </Button>
-        </div>
+        </header>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="card-elegant">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Projects</p>
-                <p className="text-3xl font-bold text-foreground">{projects.length}</p>
-              </div>
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Settings className="w-6 h-6 text-primary" />
-              </div>
-            </div>
-          </div>
-
-          <div className="card-elegant">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Projects</p>
-                <p className="text-3xl font-bold text-foreground">
-                  {projects.filter(p => p.status === "active").length}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center">
-                <Users className="w-6 h-6 text-warning" />
-              </div>
-            </div>
-          </div>
-
-          <div className="card-elegant">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Completed Projects</p>
-                <p className="text-3xl font-bold text-foreground">
-                  {projects.filter(p => p.status === "completed").length}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
-                <Download className="w-6 h-6 text-success" />
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Stats Cards - Using reusable StatsCard component to eliminate DRY violation */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8" aria-label="Project statistics">
+          <StatsCard
+            label="Total Projects"
+            value={projectStats.total}
+            icon={Settings}
+            variant="primary"
+            testId="total-projects-stat"
+          />
+          
+          <StatsCard
+            label="Active Projects"
+            value={projectStats.active}
+            icon={Users}
+            variant="warning"
+            testId="active-projects-stat"
+          />
+          
+          <StatsCard
+            label="Completed Projects"
+            value={projectStats.completed}
+            icon={Download}
+            variant="success"
+            testId="completed-projects-stat"
+          />
+        </section>
 
         {/* Projects Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {projects.map((project) => (
-            <div
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" aria-label="Projects list">
+          {projects.map((project) => {
+            // Memoize progress calculation for each project
+            const progress = getProgress(project.completedTasks, project.tasksCount);
+            
+            return (
+            <ProjectCard
               key={project.id}
-              className="card-project animate-fade-in"
-              onClick={() => setSelectedProject(project)}
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <h3 className="text-xl font-semibold text-foreground mb-2">
-                    {project.name}
-                  </h3>
-                  <p className="text-sm text-muted-foreground line-clamp-2">
-                    {project.description}
-                  </p>
-                </div>
-                <Badge className={`ml-2 ${getStatusColor(project.status)}`}>
-                  {project.status}
-                </Badge>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Progress</span>
-                  <span className="font-medium">
-                    {getProgress(project.completedTasks, project.tasksCount)}%
-                  </span>
-                </div>
-                
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div
-                    className="bg-gradient-to-r from-primary to-primary-glow h-2 rounded-full transition-all duration-300"
-                    style={{
-                      width: `${getProgress(project.completedTasks, project.tasksCount)}%`,
-                    }}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between pt-2">
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Users className="w-4 h-4 mr-1" />
-                    {project.collaborators} collaborators
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {project.isPublic && (
-                      <Badge variant="outline" className="text-xs">
-                        Public
-                      </Badge>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        console.log("Delete project:", project.id);
-                      }}
-                      className="hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+              project={project}
+              progress={progress}
+              onSelect={setSelectedProject}
+              getStatusColor={getStatusColor}
+            />
+            );
+          })}
+        </section>
 
         <CreateProjectModal 
           open={showCreateModal} 

@@ -1,0 +1,52 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🚀 Running pre-push quality validation..."
+
+# Get the branch being pushed
+branch=$(git rev-parse --abbrev-ref HEAD)
+echo "📝 Pushing branch: $branch"
+
+# Run comprehensive test suite with coverage
+echo "🧪 Running test suite with coverage..."
+if ! npm run test:coverage; then
+  echo "❌ Tests failed! Push aborted."
+  exit 1
+fi
+
+# Run quality gates validation
+echo "🚪 Running quality gates validation..."
+if ! npm run validate:quality; then
+  echo "❌ Quality gates failed! Push aborted."
+  echo "💡 Run 'npm run validate:quality:fix' to attempt automatic fixes"
+  exit 1
+fi
+
+# Additional checks for main/master branch
+if [ "$branch" = "main" ] || [ "$branch" = "master" ]; then
+  echo "🏷️ Main branch detected, running additional checks..."
+  
+  # Run security audit
+  echo "🔒 Running security audit..."
+  if ! npm audit --audit-level=moderate; then
+    echo "⚠️ Security vulnerabilities detected on main branch!"
+    echo "Please run 'npm audit fix' to resolve issues"
+    exit 1
+  fi
+  
+  # Run performance tests
+  echo "⚡ Running performance tests..."
+  if ! npm run test:performance; then
+    echo "❌ Performance tests failed on main branch!"
+    exit 1
+  fi
+  
+  # Run accessibility tests
+  echo "♿ Running accessibility tests..."
+  if ! npm run test:a11y; then
+    echo "❌ Accessibility tests failed on main branch!"
+    exit 1
+  fi
+fi
+
+echo "✅ All pre-push checks passed! Proceeding with push..."

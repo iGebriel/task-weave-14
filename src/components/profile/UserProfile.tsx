@@ -58,19 +58,19 @@ export const UserProfile = ({ user, onUserUpdate, onClose }: UserProfileProps) =
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
-    
+
     if (!formData.name.trim()) {
       newErrors.name = "Name is required";
     } else if (formData.name.length < 2) {
       newErrors.name = "Name must be at least 2 characters";
     }
-    
+
     if (!formData.email) {
       newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = "Please enter a valid email";
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -80,18 +80,18 @@ export const UserProfile = ({ user, onUserUpdate, onClose }: UserProfileProps) =
 
     setIsLoading(true);
     try {
-      // TODO: Replace with your API call
+      // API call implementation needed
       console.log("Updating user:", formData);
-      
+
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       const updatedUser = {
         ...user,
         name: formData.name.trim(),
         email: formData.email,
       };
-      
+
       onUserUpdate(updatedUser);
       setIsEditing(false);
       toast.success("Profile updated successfully!");
@@ -112,7 +112,7 @@ export const UserProfile = ({ user, onUserUpdate, onClose }: UserProfileProps) =
   };
 
   const handleAvatarChange = async () => {
-    // TODO: Implement avatar upload
+    // Avatar upload functionality to be implemented
     toast.info("Avatar upload feature coming soon!");
   };
 

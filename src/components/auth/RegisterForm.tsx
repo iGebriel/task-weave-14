@@ -89,13 +89,13 @@ export const RegisterForm = ({ onRegister, onSwitchToLogin, isLoading }: Registe
           <p className="text-muted-foreground mt-2">Join us and start collaborating</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" role="form" aria-label="Create a new account">
           <div className="space-y-2">
             <Label htmlFor="name" className="text-sm font-medium">
               Full Name
             </Label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
               <Input
                 id="name"
                 type="text"
@@ -104,10 +104,14 @@ export const RegisterForm = ({ onRegister, onSwitchToLogin, isLoading }: Registe
                 className={`pl-10 ${errors.name ? 'border-destructive' : ''}`}
                 placeholder="Enter your full name"
                 disabled={isLoading}
+                data-testid="name-input"
+                aria-describedby={errors.name ? "name-error" : undefined}
+                aria-invalid={!!errors.name}
+                required
               />
             </div>
             {errors.name && (
-              <p className="text-sm text-destructive">{errors.name}</p>
+              <p id="name-error" className="text-sm text-destructive" role="alert">{errors.name}</p>
             )}
           </div>
 
@@ -116,7 +120,7 @@ export const RegisterForm = ({ onRegister, onSwitchToLogin, isLoading }: Registe
               Email Address
             </Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
               <Input
                 id="email"
                 type="email"
@@ -125,10 +129,14 @@ export const RegisterForm = ({ onRegister, onSwitchToLogin, isLoading }: Registe
                 className={`pl-10 ${errors.email ? 'border-destructive' : ''}`}
                 placeholder="Enter your email"
                 disabled={isLoading}
+                data-testid="register-email-input"
+                aria-describedby={errors.email ? "email-error" : undefined}
+                aria-invalid={!!errors.email}
+                required
               />
             </div>
             {errors.email && (
-              <p className="text-sm text-destructive">{errors.email}</p>
+              <p id="email-error" className="text-sm text-destructive" role="alert">{errors.email}</p>
             )}
           </div>
 
@@ -146,12 +154,14 @@ export const RegisterForm = ({ onRegister, onSwitchToLogin, isLoading }: Registe
                 className={`pl-10 pr-10 ${errors.password ? 'border-destructive' : ''}`}
                 placeholder="Create a strong password"
                 disabled={isLoading}
+                data-testid="register-password-input"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 disabled={isLoading}
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -175,12 +185,14 @@ export const RegisterForm = ({ onRegister, onSwitchToLogin, isLoading }: Registe
                 className={`pl-10 pr-10 ${errors.confirmPassword ? 'border-destructive' : ''}`}
                 placeholder="Confirm your password"
                 disabled={isLoading}
+                data-testid="confirm-password-input"
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 disabled={isLoading}
+                aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
               >
                 {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -196,6 +208,7 @@ export const RegisterForm = ({ onRegister, onSwitchToLogin, isLoading }: Registe
               checked={agreeToTerms}
               onCheckedChange={(checked) => setAgreeToTerms(checked as boolean)}
               disabled={isLoading}
+              data-testid="terms-checkbox"
             />
             <Label htmlFor="terms" className="text-sm leading-5">
               I agree to the{" "}
@@ -216,6 +229,7 @@ export const RegisterForm = ({ onRegister, onSwitchToLogin, isLoading }: Registe
             type="submit"
             className="w-full btn-hero"
             disabled={isLoading}
+            data-testid="sign-up-button"
           >
             {isLoading ? (
               <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />

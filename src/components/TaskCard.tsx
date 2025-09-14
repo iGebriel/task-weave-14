@@ -15,7 +15,7 @@ interface Task {
   priority: "low" | "medium" | "high";
   assignee?: string;
   dueDate?: Date;
-  createdAt: Date;
+  createdAt?: Date;
 }
 
 interface TaskCardProps {
@@ -88,6 +88,9 @@ export const TaskCard = ({ task, onTaskUpdate }: TaskCardProps) => {
       className={`card-elegant cursor-grab active:cursor-grabbing group ${
         isDragging ? "opacity-50 rotate-3 shadow-hover" : ""
       }`}
+      data-testid="task-card"
+      role="article"
+      aria-label={`Task: ${task.title}. Status: ${task.status}. Priority: ${task.priority}${task.assignee ? `. Assigned to: ${task.assignee}` : ''}${task.dueDate ? `. Due: ${task.dueDate.toLocaleDateString()}` : ''}`}
       {...attributes}
     >
       {/* Action Buttons */}
@@ -97,14 +100,19 @@ export const TaskCard = ({ task, onTaskUpdate }: TaskCardProps) => {
           variant="ghost"
           onClick={() => setIsEditing(true)}
           className="h-6 w-6 p-0 hover:bg-primary/20 hover:text-primary"
+          aria-label={`Edit task ${task.title}`}
+          title={`Edit task ${task.title}`}
         >
-          <Edit3 className="w-3 h-3" />
+          <Edit3 className="w-3 h-3" aria-hidden="true" />
         </Button>
         <div
           {...listeners}
           className="p-1 hover:bg-muted rounded cursor-grab active:cursor-grabbing"
+          role="button"
+          aria-label={`Drag to move task ${task.title}`}
+          title="Drag to move task"
         >
-          <GripVertical className="w-4 h-4 text-muted-foreground" />
+          <GripVertical className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
         </div>
       </div>
 
@@ -151,9 +159,11 @@ export const TaskCard = ({ task, onTaskUpdate }: TaskCardProps) => {
             )}
           </div>
           
-          <div className="text-xs text-muted-foreground">
-            {task.createdAt.toLocaleDateString()}
-          </div>
+          {task.createdAt && (
+            <div className="text-xs text-muted-foreground">
+              {task.createdAt.toLocaleDateString()}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,0 +1,29 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit quality checks..."
+
+# Stage changes check
+if ! git diff --cached --exit-code --quiet; then
+  echo "✅ Found staged changes, proceeding with quality checks"
+else
+  echo "ℹ️ No staged changes found, skipping pre-commit hooks"
+  exit 0
+fi
+
+# Run linting with auto-fix
+echo "🔧 Running ESLint with auto-fix..."
+npm run lint:fix
+
+# Format code
+echo "🎨 Formatting code..."
+npm run format
+
+# Type check
+echo "🔍 Running TypeScript check..."
+npm run type-check
+
+# Add formatted files back to staging
+git add .
+
+echo "✅ Pre-commit checks completed successfully!"

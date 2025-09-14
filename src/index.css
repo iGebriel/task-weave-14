@@ -185,6 +185,86 @@
   .animate-fade-in {
     animation: fadeIn 0.5s ease-out;
   }
+
+  /* Accessibility Utilities */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  .sr-only:focus {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: inherit;
+    margin: inherit;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+
+  .focus-within\:not-sr-only:focus-within .sr-only {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: inherit;
+    margin: inherit;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+
+  /* Skip Links Styling */
+  .skip-links a {
+    transform: translateY(-100%);
+    transition: transform 0.3s ease;
+  }
+
+  .skip-links a:focus {
+    transform: translateY(0%);
+  }
+
+  /* Enhanced Focus Styles */
+  *:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* High Contrast Mode Support */
+  @media (prefers-contrast: high) {
+    .card-elegant,
+    .card-project {
+      border-width: 2px;
+    }
+    
+    .btn-hero {
+      border: 2px solid hsl(var(--primary));
+    }
+  }
+
+  /* Reduced Motion Support */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+    
+    .animate-slide-up,
+    .animate-fade-in {
+      animation: none;
+    }
+  }
 }
 
 @keyframes slideUp {

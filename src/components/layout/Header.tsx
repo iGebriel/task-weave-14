@@ -48,8 +48,11 @@ export const Header = ({ user, onProfileClick, onLogout }: HeaderProps) => {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between px-6">
+    <header 
+      className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+      role="banner"
+    >
+      <nav id="main-navigation" className="container flex h-16 items-center justify-between px-6" role="navigation" aria-label="Main navigation" tabIndex={-1}>
         {/* Logo */}
         <div className="flex items-center space-x-2">
           <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
@@ -63,6 +66,7 @@ export const Header = ({ user, onProfileClick, onLogout }: HeaderProps) => {
             <Button
               variant="ghost"
               className="relative h-10 w-auto px-3 py-2 bg-card/50 backdrop-blur-sm border border-border/50 hover:bg-card/80"
+              data-testid="user-menu"
             >
               <div className="flex items-center space-x-3">
                 <Avatar className="h-8 w-8">
@@ -119,16 +123,17 @@ export const Header = ({ user, onProfileClick, onLogout }: HeaderProps) => {
             
             <DropdownMenuSeparator />
             
-            <DropdownMenuItem 
+            <DropdownMenuItem
               onClick={onLogout}
               className="cursor-pointer text-destructive hover:bg-destructive/10 hover:text-destructive"
+              data-testid="sign-out-button"
             >
               <LogOut className="mr-3 h-4 w-4" />
               <span>Sign Out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
+      </nav>
     </header>
   );
 };
